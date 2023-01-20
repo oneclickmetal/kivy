@@ -4,8 +4,8 @@ on:
   push:
   pull_request:
   create:
-  schedule:
-    - cron:  '23 1 * * *'
+  # schedule:
+  #   - cron:  '23 1 * * *'
 
 env:
   KIVY_SPLIT_EXAMPLES: 1
@@ -141,15 +141,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - runs_on: macos-11     
+          - runs_on: macos-11
             python: '3.7'
-          - runs_on: macos-11     
+          - runs_on: macos-11
             python: '3.8'
-          - runs_on: macos-11     
+          - runs_on: macos-11
             python: '3.9'
-          - runs_on: macos-11     
+          - runs_on: macos-11
             python: '3.10'
-          - runs_on: macos-11     
+          - runs_on: macos-11
             python: '3.11'
           - runs_on: apple-silicon-m1
             python: '3.8.13'

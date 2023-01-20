@@ -4,8 +4,8 @@ on:
   push:
   pull_request:
   create:
-  schedule:
-    - cron:  '23 1 * * *'
+  # schedule:
+  #   - cron:  '23 1 * * *'
 
 env:
   KIVY_SPLIT_EXAMPLES: 1
