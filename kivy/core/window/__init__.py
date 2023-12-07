@@ -221,6 +221,10 @@ class WindowBase(EventDispatcher):
             Minimum width of the window (only works for sdl2 window provider).
         `minimum_height`: int
             Minimum height of the window (only works for sdl2 window provider).
+        `always_on_top`: bool
+            When enabled, the window will be brought to the front and will keep
+            the window above the rest. If disabled, it will restore the default
+            behavior. Only works for the sdl2 window provider.
         `allow_screensaver`: bool
             Allow the device to show a screen saver, or to go to sleep
             on mobile devices. Defaults to True. Only works for sdl2 window
@@ -248,7 +252,7 @@ class WindowBase(EventDispatcher):
             Fired when the event loop wants to close the window, or if the
             escape key is pressed and `exit_on_escape` is `True`. If a function
             bound to this event returns `True`, the window will not be closed.
-            If the the event is triggered because of the keyboard escape key,
+            If the event is triggered because of the keyboard escape key,
             the keyword argument `source` is dispatched along with a value of
             `keyboard` to the bound functions.
 
@@ -285,7 +289,7 @@ class WindowBase(EventDispatcher):
             .. versionadded:: 1.10.0
 
         `on_show`:
-            Fired when when the window is shown.
+            Fired when the window is shown.
 
             .. versionadded:: 1.10.0
 
@@ -416,7 +420,7 @@ class WindowBase(EventDispatcher):
     def _get_size(self):
         r = self._rotation
         w, h = self._size
-        if self._density != 1:
+        if platform == 'win' or self._density != 1:
             w, h = self._win._get_gl_size()
         if self.softinput_mode == 'resize':
             h -= self.keyboard_height
@@ -449,6 +453,22 @@ class WindowBase(EventDispatcher):
 
     :attr:`minimum_height` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 0.
+    '''
+
+    always_on_top = BooleanProperty(False)
+    '''When enabled, the window will be brought to the front and will keep
+    the window above the rest. If disabled, it will restore the default
+    behavior.
+
+    This option can be toggled freely during the window's lifecycle.
+
+    Only works for the sdl2 window provider. Check the :mod:`~kivy.config`
+    documentation for a more detailed explanation on the values.
+
+    .. versionadded:: 2.2.0
+
+    :attr:`always_on_top` is a :class:`~kivy.properties.BooleanProperty` and
+    defaults to False.
     '''
 
     allow_screensaver = BooleanProperty(True)
@@ -499,7 +519,7 @@ class WindowBase(EventDispatcher):
     # make some property read-only
     def _get_width(self):
         _size = self._size
-        if self._density != 1:
+        if platform == 'win' or self._density != 1:
             _size = self._win._get_gl_size()
         r = self._rotation
         if r == 0 or r == 180:
@@ -516,7 +536,7 @@ class WindowBase(EventDispatcher):
         '''Rotated window height'''
         r = self._rotation
         _size = self._size
-        if self._density != 1:
+        if platform == 'win' or self._density != 1:
             _size = self._win._get_gl_size()
         kb = self.keyboard_height if self.softinput_mode == 'resize' else 0
         if r == 0 or r == 180:
@@ -719,13 +739,13 @@ class WindowBase(EventDispatcher):
     '''
 
     def _get_effective_size(self):
-        '''On density=1 and non-ios displays, return :attr:`system_size`,
-        else return scaled / rotated :attr:`size`.
+        '''On density=1 and non-ios / non-Windows displays,
+        return :attr:`system_size`, else return scaled / rotated :attr:`size`.
 
         Used by MouseMotionEvent.update_graphics() and WindowBase.on_motion().
         '''
         w, h = self.system_size
-        if platform == 'ios' or self._density != 1:
+        if platform in ('ios', 'win') or self._density != 1:
             w, h = self.size
 
         return w, h
@@ -913,6 +933,33 @@ class WindowBase(EventDispatcher):
     the position set in :class:`~kivy.config.Config`.
     '''
 
+    def _get_opacity(self):
+        return self._get_window_opacity()
+
+    def _set_opacity(self, opacity):
+        return self._set_window_opacity(opacity)
+
+    def _get_window_opacity(self):
+        Logger.warning('Window: Opacity is not implemented in the current '
+                       'window provider')
+
+    def _set_window_opacity(self, opacity):
+        Logger.warning('Window: Opacity is not implemented in the current '
+                       'window provider')
+
+    opacity = AliasProperty(_get_opacity, _set_opacity, cache=True)
+    '''Opacity of the window. Accepts a value between 0.0 (transparent) and
+    1.0 (opaque).
+
+    .. note::
+        This feature requires the SDL2 window provider.
+
+    .. versionadded:: 2.3.0
+
+    :attr:`opacity` is an :class:`~kivy.properties.AliasProperty` and defaults
+    to `1.0`.
+    '''
+
     @property
     def __self__(self):
         return self
@@ -1021,6 +1068,10 @@ class WindowBase(EventDispatcher):
         if 'minimum_height' not in kwargs:
             kwargs['minimum_height'] = Config.getint('graphics',
                                                      'minimum_height')
+        if 'always_on_top' not in kwargs:
+            kwargs['always_on_top'] = Config.getboolean(
+                'graphics', 'always_on_top'
+            )
         if 'allow_screensaver' not in kwargs:
             kwargs['allow_screensaver'] = Config.getboolean(
                 'graphics', 'allow_screensaver')
@@ -1156,15 +1207,6 @@ class WindowBase(EventDispatcher):
         '''
         pass
 
-    @deprecated
-    def toggle_fullscreen(self):
-        '''Toggle between fullscreen and windowed mode.
-
-        .. deprecated:: 1.9.0
-            Use :attr:`fullscreen` instead.
-        '''
-        pass
-
     def maximize(self):
         '''Maximizes the window. This method should be used on desktop
         platforms only.
@@ -1295,7 +1337,7 @@ class WindowBase(EventDispatcher):
         If you set the property `draggable` on a layout,
         all the child in the layout will receive touch events
 
-        If you want to override default behaviour, add function `in_drag_area(x,y)`
+        If you want to override default behavior, add function `in_drag_area(x,y)`
         to the widget
 
         The function is call with two args x,y which are mouse.x, and mouse.y
@@ -1904,7 +1946,7 @@ class WindowBase(EventDispatcher):
 
     def on_request_close(self, *largs, **kwargs):
         '''Event called before we close the window. If a bound function returns
-        `True`, the window will not be closed. If the the event is triggered
+        `True`, the window will not be closed. If the event is triggered
         because of the keyboard escape key, the keyword argument `source` is
         dispatched along with a value of `keyboard` to the bound functions.
 
